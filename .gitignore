@@ -1,4 +1,4 @@
-.vscode/
+.vscode/*
 gitignore
-python/source/__pycache__/
+python/source/__pycache__/*
 workspace.code-workspace
