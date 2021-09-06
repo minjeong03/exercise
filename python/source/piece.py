@@ -3,48 +3,65 @@ from constants import *
 import sys
 import os
 
+#####################################################################################
+
 k_piece_ended_format_code = "\n\n"
 
 
 def load_pieces_from_file(file_name):
     pieces = []
-    with open(os.path.join(sys.path[0], "..\data", file_name), "r") as f:
+    file_path = os.path.join(sys.path[0], "..\data", file_name)
+    with open(file_path, "r") as f:
         content = f.read()
         start_pos = 0
         while content.find(k_piece_ended_format_code, start_pos) != -1:
             last_pos = content.find(k_piece_ended_format_code, start_pos)
-            start_pos = last_pos + len(k_piece_ended_format_code)
             piece_str = content[start_pos : last_pos + 1]
+            start_pos = last_pos + len(k_piece_ended_format_code)
             piece = Piece()
             piece.set_from_string(piece_str)
             pieces.append(piece)
     return pieces
 
 
+#####################################################################################
+
+
 class Tile:
-    def __init__(self, relative_pos_to_piece):
+    def __init__(self, pos):
         self.fill_color = k_default_tile_fill_color
         self.outline_color = k_default_tile_outline_color
         self.size_in_unit = 1
         self.inner_size_ratio = 0.9
         self.fill_size = self.size_in_unit * self.inner_size_ratio
-        self.relative_pos_to_piece = relative_pos_to_piece
+        self.pos = pos
 
-    def render(self, left_bottom_point):
-        left_bottom_point = (
-            left_bottom_point[0] + self.relative_pos_to_piece[0],
-            left_bottom_point[1] + self.relative_pos_to_piece[1],
+    def render(self):
+        left_bottom_point_px = (
+            to_pixels(self.pos[0]),
+            to_pixels(self.pos[1]),
         )
-        print(left_bottom_point)
-        draw_square(left_bottom_point, to_pixels(self.size_in_unit), self.fill_color)
+
+        draw_square(
+            left_bottom_point_px,
+            to_pixels(self.size_in_unit),
+            self.fill_color,
+            self.fill_color,
+        )
         outline_pixels = (to_pixels(self.size_in_unit) - to_pixels(self.fill_size)) / 2
         outline_left_bottom_point = (
-            left_bottom_point[0] + outline_pixels,
-            left_bottom_point[1] + outline_pixels,
+            left_bottom_point_px[0] + outline_pixels,
+            left_bottom_point_px[1] + outline_pixels,
         )
         draw_square(
-            outline_left_bottom_point, to_pixels(self.fill_size), self.outline_color
+            outline_left_bottom_point,
+            to_pixels(self.fill_size),
+            self.outline_color,
+            self.outline_color,
         )
+
+
+#####################################################################################
 
 
 class Piece:
@@ -55,11 +72,12 @@ class Piece:
 
     def render(self):
         for tile in self.tiles:
-            tile.render(self.pos)
+            tile.render()
 
     def rotate(self):
         result = self.mat[:]
         self.mat = rotate_sqaure(result)
+        self.update_tiles()
 
     def set_from_string(self, str):
         result = []
@@ -73,19 +91,27 @@ class Piece:
             elif letter == "1":
                 current.append(1)
         self.mat = result
+        self.update_tiles()
+
+    def update_tiles(self):
         self.tiles = []
-        for x, row in enumerate(self.mat):
-            curr_x = -x - 1
-            for y, col in enumerate(self.mat[curr_x]):
+        for y, row in enumerate(self.mat):
+            curr_y = -y - 1
+            for x, col in enumerate(self.mat[curr_y]):
                 if col == 1:
-                    self.tiles.append(Tile((x, y)))
+                    self.tiles.append(Tile((self.pos[0] + x, self.pos[1] + y)))
 
 
-# rotate 2D list 90 degree clockwise
-# e.g)
-# [[1, 2],      [[3, 1],        [[4, 3],
-#  [3, 4]]  =>   [4, 2]]    =>   [2, 1]]    =>
-# impl: transpose and then do the symmetry about y axis
+"""
+rotate 2D list 90 degree clockwise
+e.g)
+    [[1, 2],      [[3, 1],        [[4, 3],
+    [3, 4]]  =>   [4, 2]]    =>   [2, 1]]    =>
+impl)
+     transpose and then do the symmetry about y axis
+"""
+
+
 def rotate_sqaure(mat):
     if len(mat) <= 0:
         return
