@@ -1,22 +1,3 @@
-# CREATE PIECE....................................
-# what's the problem..........?
-# I want to have new piece created out of boundary, but I only have the board-size number of tile turtles
-# Who'drawing the new piece? and when any tile of new piece enters boundary, how to change the drawing turtle
-# to the board's turtle?
-# Okay, let's figure that out first
-# okay... there's going to be tile turtles for the new piece and
-# once the piece is settled down, the ownership for drawing tiles for the piece is transfered to the board
-
-# What is the condition I should create new piece?
-# when curr piece is empty.
-
-# HOW TO TICK()!?@!@!@!@!@!
-
-# QUEUE INPUTS??? or JUST APPLY ??????
-
-# SO BUGGY!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-# Bug. how to check game_over() when the tiles are only testable within the board?
 # Bug. the current tile turtles won't clear when hard drop
 
 from turtle import *
@@ -54,6 +35,7 @@ class TileTurtle(Turtle):
 
 class Tetris:
     def __init__(self, screen):
+        self.debug_print_enabled = False
         self.screen = screen
 
         self.dec_curr_piece_row_timer = 0
@@ -63,14 +45,12 @@ class Tetris:
         self.board_tiles_occupied = [
             [False for row in range(NUM_TILES_ROW)] for col in range(NUM_TILES_COL)
         ]
-        # print(self.board_tiles_occupied)
 
         self.screen.tracer(False)
         self.board_tiles = [
             [TileTurtle(col, row) for row in range(NUM_TILES_ROW)]
             for col in range(NUM_TILES_COL)
         ]
-        # print(self.board_tiles)
         self.screen.tracer(True)
 
         # Q. can I pull this out as a piece class?
@@ -95,34 +75,47 @@ class Tetris:
                     for tile_pos in self.curr_piece_tile_poses
                 ]
 
-                # collision check against board
-                if self.check_collision(
+                # Note. expects that any_tiles_occupied(curr_piece_tile_poses) returns false
+                if self.any_tiles_occupied(
                     next_piece_tile_poses, self.board_tiles_occupied
                 ):
+                    if self.any_tiles_row(self.curr_piece_tile_poses, NUM_TILES_ROW):
+                        self.game_over()
+                    else:
+                        self.settle_tiles_on_board_clear_current_tiles(
+                            self.curr_piece_tile_poses
+                        )
+                elif self.any_tiles_row(self.curr_piece_tile_poses, 0):
                     self.settle_tiles_on_board_clear_current_tiles(
                         self.curr_piece_tile_poses
                     )
-
                 else:
-                    # if no collision
-                    self.screen.tracer(False)
                     self.curr_piece_tile_poses = next_piece_tile_poses
+                    self.screen.tracer(False)
                     for i, tile_pos in enumerate(self.curr_piece_tile_poses):
                         self.curr_piece_tile_turtles[i].goto(tile_pos[0], tile_pos[1])
                     self.screen.tracer(True)
 
         self.screen.ontimer(self.update, TICK_RATE)
 
+    def game_over(self):
+        print("game over!")
+        pass
+
+    # Refactor. this function does too much jobs
+    # what it does right now:
+    # 1. set tiles on the board
+    # 2. clear current piece
     def settle_tiles_on_board_clear_current_tiles(self, tile_poses):
         self.screen.tracer(False)
-        self.curr_piece_tile_turtles = []
         for tile_pos in tile_poses:
             self.board_tiles_occupied[tile_pos[0]][tile_pos[1]] = True
             self.board_tiles[tile_pos[0]][tile_pos[1]].fillcolor(
                 self.curr_piece_fillcolor
             )
-        for col in self.board_tiles_occupied:
-            print(col)
+
+        # Bug. don't clear tiles as white when hard-drop piece
+        self.curr_piece_tile_turtles = []
         self.curr_piece_tile_poses = []
         self.screen.tracer(True)
 
@@ -145,26 +138,41 @@ class Tetris:
         ]
         self.screen.tracer(True)
 
-    def is_out_of_board(self, tile):
-        if tile[0] < 0 or tile[0] >= NUM_TILES_COL or tile[1] < 0:
-            return True
+    def any_tiles_row(self, tiles, row):
+        for tile in tiles:
+            if tile[1] == row:
+                return True
         return False
 
-    def check_collision(self, next_piece_tile_poses, board_tiles_occupied):
-        for moving_tile in next_piece_tile_poses:
-            # this piece just has been created outside of board
-            if moving_tile[1] >= NUM_TILES_ROW:
+    def are_valid(self, tiles):
+        for tile in tiles:
+            if not self.is_valid(tile):
                 return False
-            if self.is_out_of_board(moving_tile):
-                return True
-            if board_tiles_occupied[moving_tile[0]][moving_tile[1]] == True:
+        return True
+
+    def is_valid(self, tile):
+        if (
+            tile[0] < 0
+            or tile[0] >= NUM_TILES_COL
+            or tile[1] < 0
+            or tile[1] >= NUM_TILES_ROW
+        ):
+            return False
+        return True
+
+    # tiles = list of tuples (col, row)
+    # board_tiles_occupied = 2D list [col][row]
+    # Note: this function checks valid tiles and ingores invalid tiles
+    def any_tiles_occupied(self, tiles, board_tiles_occupied):
+        for tile in tiles:
+            if self.is_valid(tile) and board_tiles_occupied[tile[0]][tile[1]] == True:
                 return True
         return False
 
     def increase_row_drop_speed(self, x, y):
         self.dec_curr_piece_row_duration_milisec -= 50
 
-    def drop_hard_current_piece_2(self):
+    def drop_hard_current_piece(self):
         print("HI")
         # bounding box (bot_left, top_right) = (min_col, min_row) (max_col, max_row)
         min_col = NUM_TILES_COL
@@ -184,76 +192,47 @@ class Tetris:
             elif max_row < row:
                 max_row = row
 
-        print([(min_col, max_col), (min_row, max_row)])
+        self.debug_print([(min_col, max_col), (min_row, max_row)])
 
         # highest row in the board where col ranges from (left, right)
-        k_last_max_row = len(self.board_tiles_occupied[0]) - 1
-        highest_row = 0
+        k_last_max_row = NUM_TILES_ROW - 1
+        highest_row = -1
         for col in range(min_col, max_col + 1):
             for row, value in enumerate(reversed(self.board_tiles_occupied[col])):
                 if value == True:
-                    real_row = k_last_max_row - row
-                    if highest_row < real_row:
-                        highest_row = real_row
+                    highest_row = k_last_max_row - row
+                    self.debug_print(("found one ", row, highest_row))
                     break  # becase iterating descending order
-        print("highest row = %d" % highest_row)
-        print((min_row - highest_row, max_row - highest_row + 1))
-        print(self.curr_piece_tile_poses)
-        for d_row in reversed(
-            range(min_row - highest_row - 1, max_row - highest_row + 1)
-        ):
-            print(d_row)
+
+        # the piece might go as deep as bounding box height(max_row - min_row + 1) - 1 from(subtracted from) highest,
+        # which means, the possible minimum row ranges (highest - (max_row-min_row+1) + 1, highest + 1)
+        self.debug_print(self.curr_piece_tile_poses)
+        top_row = highest_row + 1
+        deepest_row = max(highest_row - (max_row - min_row), 0)
+
+        self.debug_print((deepest_row, top_row))
+        for possible_row in range(deepest_row, top_row + 1):
             test_piece_tile_poses = [
-                (tile_pos[0], tile_pos[1] - d_row)
-                for tile_pos in self.curr_piece_tile_poses
+                (tile_pos[0], possible_row) for tile_pos in self.curr_piece_tile_poses
             ]
-            print(test_piece_tile_poses)
-            if (
-                self.check_collision(test_piece_tile_poses, self.board_tiles_occupied)
-                == False
-            ):
-                self.settle_tiles_on_board_clear_current_tiles(test_piece_tile_poses)
-                print("\\^0^/")
+            self.debug_print(test_piece_tile_poses)
+            if self.are_valid(test_piece_tile_poses):
+                if not self.any_tiles_occupied(
+                    test_piece_tile_poses, self.board_tiles_occupied
+                ):
+                    self.settle_tiles_on_board_clear_current_tiles(
+                        test_piece_tile_poses
+                    )
+                    print("\\^0^/")
+                    return
+            else:
+                self.game_over()
                 return
+        print("hit unexpected code path")
 
-    def drop_hard_current_piece_1(self):
-
-        min_col = NUM_TILES_COL
-        max_col = -1
-        min_row = NUM_TILES_ROW
-        col_at_lowest = min_col
-
-        # Q. what if create a Piece class that has methods querying such things? !!!!
-        # find the col of the tile where the tile is the lowest row among all the tiles of the piece
-        # what if the col at lowest row doesn't collide but the col at next lowest collide?
-        # should sort the cols by rows?
-        for tile_pos in self.curr_piece_tile_poses:
-            row = tile_pos[1]
-            col = tile_pos[0]
-            if min_col > col:
-                min_col = col
-            elif max_col < col:
-                max_col = col
-            if min_row > row:
-                min_row = row
-                col_at_lowest = col
-
-        # find the highest row True where col ranges from min_col to max_col
-        last_max_row = len(self.board_tiles_occupied[0]) - 1
-        col_at_max_row = 0
-        max_row = 0
-        for col in range(min_col, max_col + 1):
-            for row, value in enumerate(reversed(self.board_tiles_occupied[col])):
-                if value == True:
-                    real_row = last_max_row - row
-                    if max_row < real_row:
-                        max_row = real_row
-                        col_at_max_row = col
-                    break  # becase iterating descending order
-
-        # DOES IT gaurantee that other tiles of current piece don't collide with board?
-        # SHOULD I JUST CHECK FOR ALL TILES?
-        max_row + 1
+    def print_board(self):
+        for col in self.board_tiles_occupied:
+            print(col)
 
     def rotate_current_piece(self):
         pass
@@ -263,6 +242,10 @@ class Tetris:
 
     def move_current_piece_left(self):
         pass
+
+    def debug_print(self, *arg, **kwrds):
+        if self.debug_print_enabled:
+            print(arg, kwrds)
 
 
 def tick():
@@ -292,8 +275,7 @@ def setup():
     screen.ontimer(tetris.update, TICK_RATE)
     screen.onclick(tetris.increase_row_drop_speed, 1)
 
-    screen.onkeyrelease(tetris.drop_hard_current_piece_1, "space")
-    screen.onkeyrelease(tetris.drop_hard_current_piece_2, "Return")
+    screen.onkeyrelease(tetris.drop_hard_current_piece, "space")
     screen.onkeyrelease(tetris.rotate_current_piece, "uparrow")
     screen.onkeyrelease(tetris.move_current_piece_right, "rightarrow")
     screen.onkeyrelease(tetris.move_current_piece_left, "leftarrow")
