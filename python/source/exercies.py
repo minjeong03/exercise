@@ -1,4 +1,9 @@
-# Bug. the current tile turtles won't clear when hard drop
+# Todo For Tomorrow
+# 1. Piece class
+# 2. Refactor
+# 3. Rotation
+#
+
 
 from turtle import *
 import math
@@ -37,7 +42,7 @@ class TileTurtle(Turtle):
 
 class Tetris:
     def __init__(self, screen):
-        self.debug_print_enabled = True
+        self.debug_print_enabled = False
         self.screen = screen
 
         self.dec_curr_piece_row_timer = 0
@@ -119,7 +124,6 @@ class Tetris:
                 self.curr_piece_fillcolor
             )
 
-        # Bug. don't clear tiles as white when hard-drop piece
         for curr_piece_turtle in self.curr_piece_tile_turtles:
             curr_piece_turtle.goto(NUM_TILES_COL + 1, NUM_TILES_ROW + 1)
             curr_piece_turtle.fillcolor("white")
