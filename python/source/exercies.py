@@ -37,7 +37,7 @@ class TileTurtle(Turtle):
 
 class Tetris:
     def __init__(self, screen):
-        self.debug_print_enabled = False
+        self.debug_print_enabled = True
         self.screen = screen
 
         self.dec_curr_piece_row_timer = 0
@@ -120,8 +120,11 @@ class Tetris:
             )
 
         # Bug. don't clear tiles as white when hard-drop piece
-        self.curr_piece_tile_turtles = []
+        for curr_piece_turtle in self.curr_piece_tile_turtles:
+            curr_piece_turtle.goto(NUM_TILES_COL + 1, NUM_TILES_ROW + 1)
+            curr_piece_turtle.fillcolor("white")
         self.curr_piece_tile_poses = []
+        self.curr_piece_tile_turtles = []
         self.screen.tracer(True)
 
     def create_piece(self):
@@ -210,7 +213,9 @@ class Tetris:
         for col in range(min_col, max_col + 1):
             for row, value in enumerate(reversed(self.board_tiles_occupied[col])):
                 if value == True:
-                    highest_row = k_last_max_row - row
+                    real_row = k_last_max_row - row
+                    if highest_row < real_row:
+                        highest_row = real_row
                     self.debug_print(("found one ", row, highest_row))
                     break  # becase iterating descending order
 
@@ -255,10 +260,10 @@ class Tetris:
             if not self.is_valid_soft(tile):
                 self.debug_print("hit the wall")
                 return
-        
+
         if self.any_tiles_occupied(new_poses, self.board_tiles_occupied):
             self.debug_print("hit the occupied tile")
-            return 
+            return
 
         # Todo. make this a function
         self.curr_piece_tile_poses = new_poses
@@ -280,9 +285,9 @@ class Tetris:
         print("down")
         self.move_current_piece(0, -1)
 
-    def debug_print(self, *arg, **kwrds):
+    def debug_print(self, *arg):
         if self.debug_print_enabled:
-            print(arg, kwrds)
+            print(arg)
 
 
 def tick():
