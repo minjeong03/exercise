@@ -3,6 +3,8 @@
 from turtle import *
 import math
 
+TICK_ENABLED = True
+
 MARGIN_BOTTOM_TOP = 30
 MARGIN_LEFT_RIGHT = 30
 
@@ -39,7 +41,7 @@ class Tetris:
         self.screen = screen
 
         self.dec_curr_piece_row_timer = 0
-        self.dec_curr_piece_row_duration_milisec = 1000
+        self.dec_curr_piece_row_duration_milisec = 500
 
         # Q. can I pull this out as a board class?
         self.board_tiles_occupied = [
@@ -58,11 +60,14 @@ class Tetris:
         self.curr_piece_tile_poses = []
         self.curr_piece_fillcolor = "red"
 
+    def restart(self):
+        pass
+
     def update(self):
         if len(self.curr_piece_tile_poses) == 0:
             self.create_piece()
         else:
-            self.dec_curr_piece_row_timer += TICK_RATE
+            self.dec_curr_piece_row_timer += TICK_ENABLED and TICK_RATE
             if self.dec_curr_piece_row_timer < self.dec_curr_piece_row_duration_milisec:
                 pass
             else:
@@ -150,6 +155,11 @@ class Tetris:
                 return False
         return True
 
+    def is_valid_soft(self, tile):
+        if tile[0] < 0 or tile[0] >= NUM_TILES_COL or tile[1] < 0:
+            return False
+        return True
+
     def is_valid(self, tile):
         if (
             tile[0] < 0
@@ -173,7 +183,7 @@ class Tetris:
         self.dec_curr_piece_row_duration_milisec -= 50
 
     def drop_hard_current_piece(self):
-        print("HI")
+        print("drop_hard")
         # bounding box (bot_left, top_right) = (min_col, min_row) (max_col, max_row)
         min_col = NUM_TILES_COL
         max_col = -1
@@ -237,11 +247,38 @@ class Tetris:
     def rotate_current_piece(self):
         pass
 
+    def move_current_piece(self, d_col, d_row):
+        new_poses = [
+            (tile[0] + d_col, tile[1] + d_row) for tile in self.curr_piece_tile_poses
+        ]
+        for tile in new_poses:
+            if not self.is_valid_soft(tile):
+                self.debug_print("hit the wall")
+                return
+        
+        if self.any_tiles_occupied(new_poses, self.board_tiles_occupied):
+            self.debug_print("hit the occupied tile")
+            return 
+
+        # Todo. make this a function
+        self.curr_piece_tile_poses = new_poses
+        print(self.curr_piece_tile_poses)
+        self.screen.tracer(False)
+        for i, tile_pos in enumerate(self.curr_piece_tile_poses):
+            self.curr_piece_tile_turtles[i].goto(tile_pos[0], tile_pos[1])
+        self.screen.tracer(True)
+
     def move_current_piece_right(self):
-        pass
+        print("right")
+        self.move_current_piece(+1, 0)
 
     def move_current_piece_left(self):
-        pass
+        print("left")
+        self.move_current_piece(-1, 0)
+
+    def move_current_piece_down(self):
+        print("down")
+        self.move_current_piece(0, -1)
 
     def debug_print(self, *arg, **kwrds):
         if self.debug_print_enabled:
@@ -277,8 +314,9 @@ def setup():
 
     screen.onkeyrelease(tetris.drop_hard_current_piece, "space")
     screen.onkeyrelease(tetris.rotate_current_piece, "uparrow")
-    screen.onkeyrelease(tetris.move_current_piece_right, "rightarrow")
-    screen.onkeyrelease(tetris.move_current_piece_left, "leftarrow")
+    screen.onkeyrelease(tetris.move_current_piece_right, "d")
+    screen.onkeyrelease(tetris.move_current_piece_left, "a")
+    screen.onkeyrelease(tetris.move_current_piece_down, "s")
     screen.listen()
 
 
