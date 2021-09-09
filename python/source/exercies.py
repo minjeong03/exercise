@@ -92,13 +92,11 @@ class Tetris:
                     if self.any_tiles_row(self.curr_piece_tile_poses, NUM_TILES_ROW):
                         self.game_over()
                     else:
-                        self.settle_tiles_on_board_clear_current_tiles(
-                            self.curr_piece_tile_poses
-                        )
+                        self.settle_tiles_on_board(self.curr_piece_tile_poses)
+                        self.clear_current_piece()
                 elif self.any_tiles_row(self.curr_piece_tile_poses, 0):
-                    self.settle_tiles_on_board_clear_current_tiles(
-                        self.curr_piece_tile_poses
-                    )
+                    self.settle_tiles_on_board(self.curr_piece_tile_poses)
+                    self.clear_current_piece()
                 else:
                     self.curr_piece_tile_poses = next_piece_tile_poses
                     self.screen.tracer(False)
@@ -116,14 +114,17 @@ class Tetris:
     # what it does right now:
     # 1. set tiles on the board
     # 2. clear current piece
-    def settle_tiles_on_board_clear_current_tiles(self, tile_poses):
+    def settle_tiles_on_board(self, tile_poses):
         self.screen.tracer(False)
         for tile_pos in tile_poses:
             self.board_tiles_occupied[tile_pos[0]][tile_pos[1]] = True
             self.board_tiles[tile_pos[0]][tile_pos[1]].fillcolor(
                 self.curr_piece_fillcolor
             )
+        self.screen.tracer(True)
 
+    def clear_current_piece(self):
+        self.screen.tracer(False)
         for curr_piece_turtle in self.curr_piece_tile_turtles:
             curr_piece_turtle.goto(NUM_TILES_COL + 1, NUM_TILES_ROW + 1)
             curr_piece_turtle.fillcolor("white")
@@ -239,9 +240,8 @@ class Tetris:
                 if not self.any_tiles_occupied(
                     test_piece_tile_poses, self.board_tiles_occupied
                 ):
-                    self.settle_tiles_on_board_clear_current_tiles(
-                        test_piece_tile_poses
-                    )
+                    self.settle_tiles_on_board(test_piece_tile_poses)
+                    self.clear_current_piece()
                     print("\\^0^/")
                     return
             else:
