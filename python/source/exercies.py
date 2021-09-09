@@ -1,18 +1,24 @@
-# Todo For Tomorrow
-# 1. Piece class
-# 3. Rotation
-#
+# Todo For the future
+# 1. FIX BUGS!
+#   a. rotation fails outside of board
+#   b. hit unexpected code path
+#   c. malfunctioning hard-drop
+# 2. records input per game session
+# 3. verbose log into txt file
 
-
+from piece_parser import load_shape_matrices_from_file
 from turtle import *
 from constants import *
 from piece import Piece
 from board import Board
 from tile_utility import *
+from random import randint
+from copy import copy
 
 
 class Tetris:
     def __init__(self, screen):
+        self.paused = False
         self.debug_print_enabled = False
         self.screen = screen
 
@@ -22,37 +28,46 @@ class Tetris:
         self.board = Board(NUM_TILES_COL, NUM_TILES_ROW, self.screen)
         self.piece = Piece(self.screen)
 
+        self.shapes = load_shape_matrices_from_file("pieces.txt")
+        self.colors = ["red", "green", "blue"]
+
     def restart(self):
         pass
 
     def update(self):
-        if len(self.piece.tile_poses) == 0:
-            self.create_piece()
-        else:
-            self.dec_curr_piece_row_timer += TICK_RATE if TICK_ENABLED else 0
-            if self.dec_curr_piece_row_timer < self.dec_curr_piece_row_duration_milisec:
-                pass
+        if not self.paused:
+            if len(self.piece.tile_poses) == 0:
+                self.create_piece()
             else:
-                self.dec_curr_piece_row_timer -= (
-                    self.dec_curr_piece_row_duration_milisec
-                )
+                self.dec_curr_piece_row_timer += TICK_RATE if TICK_ENABLED else 0
+                if (
+                    self.dec_curr_piece_row_timer
+                    < self.dec_curr_piece_row_duration_milisec
+                ):
+                    pass
+                else:
+                    self.dec_curr_piece_row_timer -= (
+                        self.dec_curr_piece_row_duration_milisec
+                    )
 
-                next_piece_tile_poses = self.piece.get_translated_tiles(0, -1)
+                    next_piece_tile_poses = self.piece.get_translated_tiles(0, -1)
 
-                # Note. expects that any_tiles_occupied(curr_piece_tile_poses) returns false
-                if self.board.any_tiles_occupied(next_piece_tile_poses):
-                    if any_tiles_row(self.piece.tile_poses, self.board.num_row):
-                        self.game_over()
-                    else:
+                    # Note. expects that any_tiles_occupied(curr_piece_tile_poses) returns false
+                    if self.board.any_tiles_occupied(next_piece_tile_poses):
+                        if any_tiles_row(self.piece.tile_poses, self.board.num_row):
+                            self.game_over()
+                        else:
+                            self.board.set_tiles_occupied(
+                                self.piece.tile_poses, self.piece.fillcolor
+                            )
+                            self.piece.reset()
+                    elif any_tiles_row(self.piece.tile_poses, 0):
                         self.board.set_tiles_occupied(
                             self.piece.tile_poses, self.piece.fillcolor
                         )
                         self.piece.reset()
-                elif any_tiles_row(self.piece.tile_poses, 0):
-                    self.board.set_tiles_occupied(self.piece.tile_poses)
-                    self.piece.reset()
-                else:
-                    self.piece.translate_to(next_piece_tile_poses)
+                    else:
+                        self.piece.translate(0, -1)
         self.screen.ontimer(self.update, TICK_RATE)
 
     def game_over(self):
@@ -66,13 +81,11 @@ class Tetris:
             )
             return
 
-        piece_tile_poses = [
-            (4, NUM_TILES_ROW),
-            (5, NUM_TILES_ROW),
-            (6, NUM_TILES_ROW),
-        ]
-
-        self.piece.set(piece_tile_poses, "red")
+        piece_shape = copy(self.shapes[randint(0, len(self.shapes) - 1)])
+        piece_color = copy(self.colors[randint(0, len(self.colors) - 1)])
+        self.piece.set(
+            piece_shape, piece_color, (self.board.num_col // 2, self.board.num_row)
+        )
 
     def increase_row_drop_speed(self, x, y):
         self.dec_curr_piece_row_duration_milisec -= 50
@@ -81,7 +94,7 @@ class Tetris:
         print("drop_hard")
 
         piece_bounding_box = self.piece.get_bounding_box()
-        self.debug_print(piece_bounding_box)
+        self.debug_print(("bb: ", piece_bounding_box))
 
         # highest row in the board where col ranges from (left, right)
         highest_row = self.board.get_highest_tile_occupied(
@@ -90,17 +103,18 @@ class Tetris:
 
         # the piece might go as deep as bounding box height(max_row - min_row + 1) - 1 from(subtracted from) highest,
         # which means, the possible minimum row ranges (highest - (max_row-min_row+1) + 1, highest + 1)
-        self.debug_print(self.piece.tile_poses)
+        self.debug_print(("curr: ", self.piece.tile_poses))
         top_row = highest_row + 1
         deepest_row = max(
             highest_row - (piece_bounding_box[1][1] - piece_bounding_box[0][1]), 0
         )
-        self.debug_print((deepest_row, top_row))
+        self.debug_print(("(bottom, top): ", (deepest_row, top_row)))
         for possible_row in range(deepest_row, top_row + 1):
+            d_row = piece_bounding_box[0][1] - (possible_row)
             test_piece_tile_poses = [
-                (tile_pos[0], possible_row) for tile_pos in self.piece.tile_poses
+                (tile_pos[0], tile_pos[1] - d_row) for tile_pos in self.piece.tile_poses
             ]
-            self.debug_print(test_piece_tile_poses)
+            self.debug_print(("test poses = ", test_piece_tile_poses))
             if self.board.are_valid(test_piece_tile_poses):
                 if not self.board.any_tiles_occupied(test_piece_tile_poses):
                     self.board.set_tiles_occupied(
@@ -114,19 +128,23 @@ class Tetris:
                 return
         print("hit unexpected code path")
 
-    def move_current_piece(self, d_col, d_row):
-        new_poses = self.piece.get_translated_tiles(d_col, d_row)
-
+    def are_valid_tiles_on_board(self, new_poses):
         for tile in new_poses:
             if not self.board.is_valid_soft(tile):
                 self.debug_print("hit the wall")
-                return
+                return False
 
         if self.board.any_tiles_occupied(new_poses):
             self.debug_print("hit the occupied tile")
-            return
+            return False
 
-        self.piece.translate_to(new_poses)
+        return True
+
+    def move_current_piece(self, d_col, d_row):
+        new_poses = self.piece.get_translated_tiles(d_col, d_row)
+
+        if self.are_valid_tiles_on_board(new_poses):
+            self.piece.translate(d_col, d_row)
 
     def move_current_piece_right(self):
         print("right")
@@ -142,11 +160,17 @@ class Tetris:
 
     def rotate_current_piece(self):
         print("rotate")
-        pass
+        new_poses = self.piece.get_rotated_tiles()
+        if self.are_valid_tiles_on_board(new_poses):
+            self.piece.rotate()
+            print("\\^0^//")
 
     def debug_print(self, *arg):
         if self.debug_print_enabled:
             print(arg)
+
+    def pause(self):
+        self.paused = not self.paused
 
 
 def tick():
@@ -176,8 +200,9 @@ def setup():
     screen.ontimer(tetris.update, TICK_RATE)
     screen.onclick(tetris.increase_row_drop_speed, 1)
 
+    screen.onkeyrelease(tetris.pause, "Escape")
     screen.onkeyrelease(tetris.drop_hard_current_piece, "space")
-    screen.onkeyrelease(tetris.rotate_current_piece, "uparrow")
+    screen.onkeyrelease(tetris.rotate_current_piece, "w")
     screen.onkeyrelease(tetris.move_current_piece_right, "d")
     screen.onkeyrelease(tetris.move_current_piece_left, "a")
     screen.onkeyrelease(tetris.move_current_piece_down, "s")

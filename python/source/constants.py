@@ -1,8 +1,17 @@
-k_pixels_per_unit = 30
-k_default_tile_outline_color = (100, 100, 100)
-k_default_tile_fill_color = (0, 0, 0)
-k_default_board_size = (10, 20)
+import math
 
+TICK_ENABLED = True
 
-def to_pixels(unit):
-    return k_pixels_per_unit * unit
+MARGIN_BOTTOM_TOP = 30
+MARGIN_LEFT_RIGHT = 30
+
+PIXELS_PER_UNIT = 30
+SHAPESIZE = PIXELS_PER_UNIT * (1 / 20)
+
+NUM_TILES_COL = 10
+NUM_TILES_ROW = 20
+
+TICK_RATE = math.floor((1 / 60) * 1000)
+
+SCREENWIDTH = NUM_TILES_COL * PIXELS_PER_UNIT + MARGIN_BOTTOM_TOP * 2
+SCREENHEIGHT = NUM_TILES_ROW * PIXELS_PER_UNIT + MARGIN_LEFT_RIGHT * 2

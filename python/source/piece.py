@@ -1,5 +1,7 @@
+from turtle import pos
 from tileturtle import TileTurtle
 from constants import NUM_TILES_ROW, NUM_TILES_COL
+from shapematrix import *
 
 
 class Piece:
@@ -12,10 +14,17 @@ class Piece:
         self.tile_turtles = []
         self.tile_poses = []
         self.fillcolor = Piece.clear_color
+        self.shape_matrix = []
+        self.pos = (NUM_TILES_COL + 1, NUM_TILES_ROW + 1)
         pass
 
-    def set(self, tile_poses, fillcolor):
-        self.tile_poses = tile_poses
+    def set(self, shape_matrix, fillcolor, pos):
+        self.shape_matrix = shape_matrix
+        tile_poses = get_tile_local_poses(self.shape_matrix)
+        self.pos = pos
+        self.tile_poses = []
+        for tile_pos in tile_poses:
+            self.tile_poses.append((pos[0] + tile_pos[0], pos[1] + tile_pos[1]))
         self.fillcolor = fillcolor
         self.screen.tracer(False)
         self.tile_turtles = [
@@ -24,9 +33,24 @@ class Piece:
         self.screen.tracer(True)
         pass
 
-    def translate_to(self, new_poses):
+    def translate(self, d_col, d_row):
         self.screen.tracer(False)
-        self.tile_poses = new_poses
+        self.pos = (self.pos[0] + d_col, self.pos[1] + d_row)
+        self.tile_poses = [
+            (tile[0] + d_col, tile[1] + d_row) for tile in self.tile_poses
+        ]
+        for i, pos in enumerate(self.tile_poses):
+            self.tile_turtles[i].goto(pos[0], pos[1])
+        self.screen.tracer(True)
+
+    def rotate(self):
+        rotated_shape = rotate(self.shape_matrix)
+        self.shape_matrix = rotated_shape
+        self.tile_poses = [
+            (self.pos[0] + tile_pos[0], self.pos[1] + tile_pos[1])
+            for tile_pos in get_tile_local_poses(rotated_shape)
+        ]
+        self.screen.tracer(False)
         for i, pos in enumerate(self.tile_poses):
             self.tile_turtles[i].goto(pos[0], pos[1])
         self.screen.tracer(True)
@@ -40,6 +64,8 @@ class Piece:
             turtle.color(self.fillcolor)
         self.tile_turtles = []
         self.screen.tracer(True)
+        self.shape_matrix = []
+        self.pos = (NUM_TILES_COL + 1, NUM_TILES_ROW + 1)
         pass
 
     # returns [(min_col, min_row), (max_col, max_row)]
@@ -65,56 +91,8 @@ class Piece:
         return [(tile[0] + d_col, tile[1] + d_row) for tile in self.tile_poses]
 
     def get_rotated_tiles(self):
-        pass
-
-
-class PieceOld:
-    def __init__(self):
-        self.mat = []
-
-    def rotate(self):
-        result = self.mat[:]
-        self.mat = rotate_sqaure(result)
-        self.update_tiles()
-
-    def set_from_string(self, str):
-        result = []
-        current = []
-        for char in str:
-            if char == "\n":
-                result.append(current)
-                current = []
-            elif char == "0":
-                current.append(0)
-            elif char == "1":
-                current.append(1)
-        self.mat = result
-        self.update_tiles()
-
-    def update_tiles(self):
-        self.tiles = []
-        for y, row in enumerate(self.mat):
-            curr_y = -y - 1
-            for x, col in enumerate(self.mat[curr_y]):
-                if col == 1:
-                    pass  # self.tiles.append(Tile((self.pos[0] + x, self.pos[1] + y)))
-
-
-"""
-rotate 2D list 90 degree clockwise
-e.g)
-    [[1, 2],      [[3, 1],        [[4, 3],
-    [3, 4]]  =>   [4, 2]]    =>   [2, 1]]    =>
-impl)
-     transpose and then do the symmetry about y axis
-"""
-
-
-def rotate_sqaure(mat):
-    if len(mat) <= 0:
-        return
-    transposed = [[row[i] for row in mat] for i, e in enumerate(mat[0])]
-    # print(transposed)
-    y_symmetric = [[row[-1 - i] for i, col in enumerate(row)] for row in transposed]
-    # print(y_symmetric)
-    return y_symmetric
+        rotated_shape = rotate(self.shape_matrix)
+        return [
+            (self.pos[0] + tile_pos[0], self.pos[1] + tile_pos[1])
+            for tile_pos in get_tile_local_poses(rotated_shape)
+        ]
