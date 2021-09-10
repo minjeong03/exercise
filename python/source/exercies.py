@@ -5,7 +5,7 @@
 #   c. malfunctioning hard-drop
 # 2. records input per game session
 # 3. verbose log into txt file
-# 4. Wow... race condition 
+# 4. Wow... race condition
 
 from piece_parser import load_shape_matrices_from_file, parse_shape_matrix_from_string
 from turtle import *
@@ -31,7 +31,6 @@ class Tetris:
         self.flush_timer_on = False
         self.flush_board_duration_milisec = 250
 
-        self.shapes = []
         # self.shapes.append(parse_shape_matrix_from_string("11\n"))
         self.shapes = load_shape_matrices_from_file("pieces.txt")
         self.colors = ["red", "green", "blue"]
@@ -58,7 +57,8 @@ class Tetris:
 
     def update_piece(self):
         if len(self.piece.tile_poses) == 0:
-            self.create_piece()
+            if not self.piece.reset_in_progress:
+                self.create_piece()
         else:
             self.dec_curr_piece_row_timer += TICK_RATE if TICK_ENABLED else 0
             if self.dec_curr_piece_row_timer < self.dec_curr_piece_row_duration_milisec:
