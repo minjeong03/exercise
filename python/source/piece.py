@@ -20,20 +20,20 @@ class Piece:
 
     def set(self, shape_matrix, fillcolor, pos):
         print("set triggered")
-        if not self.reset_in_progress:
-            print("set started")
-            self.shape_matrix = shape_matrix
-            tile_poses = get_tile_local_poses(self.shape_matrix)
-            self.pos = pos
-            self.tile_poses = []
-            for tile_pos in tile_poses:
-                self.tile_poses.append((pos[0] + tile_pos[0], pos[1] + tile_pos[1]))
-            self.fillcolor = fillcolor
-            self.screen.tracer(False)
-            self.tile_turtles = [
-                TileTurtle(tile[0], tile[1], self.fillcolor) for tile in self.tile_poses
-            ]
-            self.screen.tracer(True)
+        # if not self.reset_in_progress:
+        print("set started")
+        self.shape_matrix = shape_matrix
+        tile_poses = get_tile_local_poses(self.shape_matrix)
+        self.pos = pos
+        self.tile_poses = []
+        for tile_pos in tile_poses:
+            self.tile_poses.append((pos[0] + tile_pos[0], pos[1] + tile_pos[1]))
+        self.fillcolor = fillcolor
+        self.screen.tracer(False)
+        self.tile_turtles = [
+            TileTurtle(tile[0], tile[1], self.fillcolor) for tile in self.tile_poses
+        ]
+        self.screen.tracer(True)
         print("set ended")
 
     def translate(self, d_col, d_row):

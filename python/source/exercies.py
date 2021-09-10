@@ -22,6 +22,7 @@ class Tetris:
         self.paused = False
         self.debug_print_enabled = False
         self.screen = screen
+        self.running = True
 
         self.setup()
 
@@ -35,6 +36,9 @@ class Tetris:
         self.shapes = load_shape_matrices_from_file("pieces.txt")
         self.colors = ["red", "green", "blue"]
 
+    def stop(self):
+        self.running = False
+
     def restart(self):
         self.screen.clearscreen()
         self.setup()
@@ -43,7 +47,6 @@ class Tetris:
         if not self.paused:
             self.update_piece()
             self.update_board()
-        self.screen.ontimer(self.update, TICK_RATE)
 
     def flush(self):
         self.board.flush_request_top()
@@ -57,8 +60,8 @@ class Tetris:
 
     def update_piece(self):
         if len(self.piece.tile_poses) == 0:
-            if not self.piece.reset_in_progress:
-                self.create_piece()
+            # if not self.piece.reset_in_progress:
+            self.create_piece()
         else:
             self.dec_curr_piece_row_timer += TICK_RATE if TICK_ENABLED else 0
             if self.dec_curr_piece_row_timer < self.dec_curr_piece_row_duration_milisec:
@@ -218,20 +221,24 @@ class Tetris:
         self.board = Board(NUM_TILES_COL, NUM_TILES_ROW, self.screen)
         self.piece = Piece(self.screen)
 
-        self.screen.ontimer(self.update, TICK_RATE)
         self.screen.onclick(self.increase_row_drop_speed, 1)
-        self.screen.onkeyrelease(self.pause, "Escape")
+        self.screen.onkeyrelease(self.pause, "Return")
         self.screen.onkeyrelease(self.drop_hard_current_piece, "space")
         self.screen.onkeyrelease(self.rotate_current_piece, "w")
         self.screen.onkeyrelease(self.move_current_piece_right, "d")
         self.screen.onkeyrelease(self.move_current_piece_left, "a")
         self.screen.onkeyrelease(self.move_current_piece_down, "s")
+        self.screen.onkeyrelease(self.stop, "Escape")
         self.screen.listen()
 
 
 def main():
     screen = Screen()
     tetris = Tetris(screen)
+
+    while tetris.running:
+        tetris.update()
+        update()
 
     return "EVENTLOOP"
 
