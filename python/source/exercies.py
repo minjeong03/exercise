@@ -29,7 +29,7 @@ class Tetris:
         self.dec_curr_piece_row_timer = 0
         self.dec_curr_piece_row_duration_milisec = 250
 
-        self.flush_timer_on = False
+        self.flush_board_timer = 0
         self.flush_board_duration_milisec = 250
 
         # self.shapes.append(parse_shape_matrix_from_string("11\n"))
@@ -53,17 +53,19 @@ class Tetris:
         self.flush_timer_on = False
 
     def update_board(self):
-        if not self.flush_timer_on:
-            if len(self.board.flush_requests) != 0:
-                self.screen.ontimer(self.flush, self.flush_board_duration_milisec)
-                self.flush_timer_on = True
+        if len(self.board.flush_requests) != 0:
+            self.flush_board_timer += TICK_STEP
+            if self.flush_board_timer >= self.flush_board_duration_milisec:
+                self.flush()
+                self.flush_board_timer -= self.flush_board_duration_milisec
+        else:
+            self.flush_board_timer = 0
 
     def update_piece(self):
         if len(self.piece.tile_poses) == 0:
-            # if not self.piece.reset_in_progress:
             self.create_piece()
         else:
-            self.dec_curr_piece_row_timer += TICK_RATE if TICK_ENABLED else 0
+            self.dec_curr_piece_row_timer += TICK_STEP
             if self.dec_curr_piece_row_timer < self.dec_curr_piece_row_duration_milisec:
                 pass
             else:

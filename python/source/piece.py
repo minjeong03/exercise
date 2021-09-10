@@ -16,12 +16,8 @@ class Piece:
         self.fillcolor = Piece.clear_color
         self.shape_matrix = []
         self.pos = (NUM_TILES_COL + 1, NUM_TILES_ROW + 1)
-        self.reset_in_progress = False
 
     def set(self, shape_matrix, fillcolor, pos):
-        print("set triggered")
-        # if not self.reset_in_progress:
-        print("set started")
         self.shape_matrix = shape_matrix
         tile_poses = get_tile_local_poses(self.shape_matrix)
         self.pos = pos
@@ -34,7 +30,6 @@ class Piece:
             TileTurtle(tile[0], tile[1], self.fillcolor) for tile in self.tile_poses
         ]
         self.screen.tracer(True)
-        print("set ended")
 
     def translate(self, d_col, d_row):
         self.screen.tracer(False)
@@ -59,9 +54,6 @@ class Piece:
         self.screen.tracer(True)
 
     def reset(self):
-        print("reset started")
-        self.reset_in_progress = True
-        print("reset in progress on")
         self.screen.tracer(False)
         self.tile_poses = []
         self.fillcolor = Piece.clear_color
@@ -72,8 +64,6 @@ class Piece:
         self.screen.tracer(True)
         self.shape_matrix = []
         self.pos = (Piece.max_col_exclusive + 1, Piece.max_row_exclusive + 1)
-        self.reset_in_progress = False
-        print("reset ended")
 
     def get_translated_tiles(self, d_col, d_row):
         return [(tile[0] + d_col, tile[1] + d_row) for tile in self.tile_poses]
