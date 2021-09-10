@@ -5,8 +5,9 @@
 #   c. malfunctioning hard-drop
 # 2. records input per game session
 # 3. verbose log into txt file
+# 4. Wow... race condition 
 
-from piece_parser import load_shape_matrices_from_file
+from piece_parser import load_shape_matrices_from_file, parse_shape_matrix_from_string
 from turtle import *
 from constants import *
 from piece import Piece
@@ -22,56 +23,73 @@ class Tetris:
         self.debug_print_enabled = False
         self.screen = screen
 
+        self.setup()
+
         self.dec_curr_piece_row_timer = 0
-        self.dec_curr_piece_row_duration_milisec = 500
+        self.dec_curr_piece_row_duration_milisec = 250
 
-        self.board = Board(NUM_TILES_COL, NUM_TILES_ROW, self.screen)
-        self.piece = Piece(self.screen)
+        self.flush_timer_on = False
+        self.flush_board_duration_milisec = 250
 
+        self.shapes = []
+        # self.shapes.append(parse_shape_matrix_from_string("11\n"))
         self.shapes = load_shape_matrices_from_file("pieces.txt")
         self.colors = ["red", "green", "blue"]
 
     def restart(self):
-        pass
+        self.screen.clearscreen()
+        self.setup()
 
     def update(self):
         if not self.paused:
-            if len(self.piece.tile_poses) == 0:
-                self.create_piece()
+            self.update_piece()
+            self.update_board()
+        self.screen.ontimer(self.update, TICK_RATE)
+
+    def flush(self):
+        self.board.flush_request_top()
+        self.flush_timer_on = False
+
+    def update_board(self):
+        if not self.flush_timer_on:
+            if len(self.board.flush_requests) != 0:
+                self.screen.ontimer(self.flush, self.flush_board_duration_milisec)
+                self.flush_timer_on = True
+
+    def update_piece(self):
+        if len(self.piece.tile_poses) == 0:
+            self.create_piece()
+        else:
+            self.dec_curr_piece_row_timer += TICK_RATE if TICK_ENABLED else 0
+            if self.dec_curr_piece_row_timer < self.dec_curr_piece_row_duration_milisec:
+                pass
             else:
-                self.dec_curr_piece_row_timer += TICK_RATE if TICK_ENABLED else 0
-                if (
-                    self.dec_curr_piece_row_timer
-                    < self.dec_curr_piece_row_duration_milisec
-                ):
-                    pass
-                else:
-                    self.dec_curr_piece_row_timer -= (
-                        self.dec_curr_piece_row_duration_milisec
-                    )
+                self.dec_curr_piece_row_timer -= (
+                    self.dec_curr_piece_row_duration_milisec
+                )
 
-                    next_piece_tile_poses = self.piece.get_translated_tiles(0, -1)
+                next_piece_tile_poses = self.piece.get_translated_tiles(0, -1)
 
-                    # Note. expects that any_tiles_occupied(curr_piece_tile_poses) returns false
-                    if self.board.any_tiles_occupied(next_piece_tile_poses):
-                        if any_tiles_row(self.piece.tile_poses, self.board.num_row):
-                            self.game_over()
-                        else:
-                            self.board.set_tiles_occupied(
-                                self.piece.tile_poses, self.piece.fillcolor
-                            )
-                            self.piece.reset()
-                    elif any_tiles_row(self.piece.tile_poses, 0):
+                # Note. expects that any_tiles_occupied(curr_piece_tile_poses) returns false
+                if self.board.test_any_tiles_occupied(next_piece_tile_poses):
+                    if any_tiles_row(self.piece.tile_poses, self.board.num_row):
+                        self.game_over()
+                    else:
                         self.board.set_tiles_occupied(
                             self.piece.tile_poses, self.piece.fillcolor
                         )
                         self.piece.reset()
-                    else:
-                        self.piece.translate(0, -1)
-        self.screen.ontimer(self.update, TICK_RATE)
+                elif any_tiles_row(self.piece.tile_poses, 0):
+                    self.board.set_tiles_occupied(
+                        self.piece.tile_poses, self.piece.fillcolor
+                    )
+                    self.piece.reset()
+                else:
+                    self.piece.translate(0, -1)
 
     def game_over(self):
         print("game over!")
+        self.restart()
         pass
 
     def create_piece(self):
@@ -93,7 +111,7 @@ class Tetris:
     def drop_hard_current_piece(self):
         print("drop_hard")
 
-        piece_bounding_box = self.piece.get_bounding_box()
+        piece_bounding_box = get_bounding_box(self.piece.tile_poses)
         self.debug_print(("bb: ", piece_bounding_box))
 
         # highest row in the board where col ranges from (left, right)
@@ -115,8 +133,9 @@ class Tetris:
                 (tile_pos[0], tile_pos[1] - d_row) for tile_pos in self.piece.tile_poses
             ]
             self.debug_print(("test poses = ", test_piece_tile_poses))
+            self.board.print()
             if self.board.are_valid(test_piece_tile_poses):
-                if not self.board.any_tiles_occupied(test_piece_tile_poses):
+                if not self.board.test_any_tiles_occupied(test_piece_tile_poses):
                     self.board.set_tiles_occupied(
                         test_piece_tile_poses, self.piece.fillcolor
                     )
@@ -134,7 +153,7 @@ class Tetris:
                 self.debug_print("hit the wall")
                 return False
 
-        if self.board.any_tiles_occupied(new_poses):
+        if self.board.test_any_tiles_occupied(new_poses):
             self.debug_print("hit the occupied tile")
             return False
 
@@ -160,10 +179,13 @@ class Tetris:
 
     def rotate_current_piece(self):
         print("rotate")
-        new_poses = self.piece.get_rotated_tiles()
-        if self.are_valid_tiles_on_board(new_poses):
-            self.piece.rotate()
-            print("\\^0^//")
+        print(self.piece.shape_matrix)
+        if len(self.piece.shape_matrix) != 0:
+            print("rotateattemt")
+            new_poses = self.piece.get_rotated_tiles()
+            if self.are_valid_tiles_on_board(new_poses):
+                self.piece.rotate()
+                print("\\^0^//")
 
     def debug_print(self, *arg):
         if self.debug_print_enabled:
@@ -172,47 +194,44 @@ class Tetris:
     def pause(self):
         self.paused = not self.paused
 
+    def setup(self):
+        self.screen.tracer(False)
+        self.screen.setup(SCREENWIDTH, SCREENHEIGHT)
+        self.screen.delay(0)
+        BOT_LEFT_WORLD = (
+            -MARGIN_LEFT_RIGHT / PIXELS_PER_UNIT,
+            -MARGIN_LEFT_RIGHT / PIXELS_PER_UNIT,
+        )
+        TOP_RIGHT_WORLD = (
+            NUM_TILES_COL + MARGIN_LEFT_RIGHT / PIXELS_PER_UNIT,
+            NUM_TILES_ROW + MARGIN_BOTTOM_TOP / PIXELS_PER_UNIT,
+        )
 
-def tick():
-    pass
+        self.screen.setworldcoordinates(
+            BOT_LEFT_WORLD[0],
+            BOT_LEFT_WORLD[1],
+            TOP_RIGHT_WORLD[0],
+            TOP_RIGHT_WORLD[1],
+        )
+        self.screen.tracer(True)
 
+        self.board = Board(NUM_TILES_COL, NUM_TILES_ROW, self.screen)
+        self.piece = Piece(self.screen)
 
-def setup():
-    screen = Screen()
-    screen.setup(SCREENWIDTH, SCREENHEIGHT)
-    screen.delay(0)
-    BOT_LEFT_WORLD = (
-        -MARGIN_LEFT_RIGHT / PIXELS_PER_UNIT,
-        -MARGIN_LEFT_RIGHT / PIXELS_PER_UNIT,
-    )
-    TOP_RIGHT_WORLD = (
-        NUM_TILES_COL + MARGIN_LEFT_RIGHT / PIXELS_PER_UNIT,
-        NUM_TILES_ROW + MARGIN_BOTTOM_TOP / PIXELS_PER_UNIT,
-    )
-
-    screen.setworldcoordinates(
-        BOT_LEFT_WORLD[0],
-        BOT_LEFT_WORLD[1],
-        TOP_RIGHT_WORLD[0],
-        TOP_RIGHT_WORLD[1],
-    )
-    tetris = Tetris(screen)
-    screen.ontimer(tetris.update, TICK_RATE)
-    screen.onclick(tetris.increase_row_drop_speed, 1)
-
-    screen.onkeyrelease(tetris.pause, "Escape")
-    screen.onkeyrelease(tetris.drop_hard_current_piece, "space")
-    screen.onkeyrelease(tetris.rotate_current_piece, "w")
-    screen.onkeyrelease(tetris.move_current_piece_right, "d")
-    screen.onkeyrelease(tetris.move_current_piece_left, "a")
-    screen.onkeyrelease(tetris.move_current_piece_down, "s")
-    screen.listen()
+        self.screen.ontimer(self.update, TICK_RATE)
+        self.screen.onclick(self.increase_row_drop_speed, 1)
+        self.screen.onkeyrelease(self.pause, "Escape")
+        self.screen.onkeyrelease(self.drop_hard_current_piece, "space")
+        self.screen.onkeyrelease(self.rotate_current_piece, "w")
+        self.screen.onkeyrelease(self.move_current_piece_right, "d")
+        self.screen.onkeyrelease(self.move_current_piece_left, "a")
+        self.screen.onkeyrelease(self.move_current_piece_down, "s")
+        self.screen.listen()
 
 
 def main():
-    tracer(False)
-    setup()
-    tracer(True)
+    screen = Screen()
+    tetris = Tetris(screen)
 
     return "EVENTLOOP"
 

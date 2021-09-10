@@ -19,6 +19,7 @@ class Piece:
         pass
 
     def set(self, shape_matrix, fillcolor, pos):
+        print("set started")
         self.shape_matrix = shape_matrix
         tile_poses = get_tile_local_poses(self.shape_matrix)
         self.pos = pos
@@ -31,7 +32,7 @@ class Piece:
             TileTurtle(tile[0], tile[1], self.fillcolor) for tile in self.tile_poses
         ]
         self.screen.tracer(True)
-        pass
+        print("set ended")
 
     def translate(self, d_col, d_row):
         self.screen.tracer(False)
@@ -56,6 +57,7 @@ class Piece:
         self.screen.tracer(True)
 
     def reset(self):
+        print("rest started")
         self.screen.tracer(False)
         self.tile_poses = []
         self.fillcolor = Piece.clear_color
@@ -66,26 +68,8 @@ class Piece:
         self.screen.tracer(True)
         self.shape_matrix = []
         self.pos = (NUM_TILES_COL + 1, NUM_TILES_ROW + 1)
+        print("rest ended")
         pass
-
-    # returns [(min_col, min_row), (max_col, max_row)]
-    def get_bounding_box(self):
-        min_col = Piece.max_col_exclusive
-        min_row = Piece.max_row_exclusive
-        max_col = 0
-        max_row = 0
-        for tile_pos in self.tile_poses:
-            row = tile_pos[1]
-            col = tile_pos[0]
-            if min_col > col:
-                min_col = col
-            elif max_col < col:
-                max_col = col
-            if min_row > row:
-                min_row = row
-            elif max_row < row:
-                max_row = row
-        return [(min_col, min_row), (max_col, max_row)]
 
     def get_translated_tiles(self, d_col, d_row):
         return [(tile[0] + d_col, tile[1] + d_row) for tile in self.tile_poses]
