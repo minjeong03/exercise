@@ -32,7 +32,8 @@ class Tetris:
         self.flush_board_timer = 0
         self.flush_board_duration_milisec = 250
 
-        # self.shapes.append(parse_shape_matrix_from_string("11\n"))
+        # self.shapes = []
+        # self.shapes.append(parse_shape_matrix_from_string("0000\n0000\n1111\n0000"))
         self.shapes = load_shape_matrices_from_file("pieces.txt")
         self.colors = ["red", "green", "blue"]
 
@@ -138,7 +139,6 @@ class Tetris:
                 (tile_pos[0], tile_pos[1] - d_row) for tile_pos in self.piece.tile_poses
             ]
             self.debug_print(("test poses = ", test_piece_tile_poses))
-            self.board.print()
             if self.board.are_valid(test_piece_tile_poses):
                 if not self.board.test_any_tiles_occupied(test_piece_tile_poses):
                     self.board.set_tiles_occupied(
@@ -184,9 +184,7 @@ class Tetris:
 
     def rotate_current_piece(self):
         print("rotate")
-        print(self.piece.shape_matrix)
         if len(self.piece.shape_matrix) != 0:
-            print("rotateattemt")
             new_poses = self.piece.get_rotated_tiles()
             if self.are_valid_tiles_on_board(new_poses):
                 self.piece.rotate()
@@ -225,6 +223,7 @@ class Tetris:
 
         self.screen.onclick(self.increase_row_drop_speed, 1)
         self.screen.onkeyrelease(self.pause, "Return")
+        # Task. queue the inputs and procedurally handle them
         self.screen.onkeyrelease(self.drop_hard_current_piece, "space")
         self.screen.onkeyrelease(self.rotate_current_piece, "w")
         self.screen.onkeyrelease(self.move_current_piece_right, "d")

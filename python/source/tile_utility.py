@@ -17,10 +17,10 @@ def get_bounding_box(tiles):
         col = tile_pos[0]
         if min_col > col:
             min_col = col
-        elif max_col < col:
+        if max_col < col:
             max_col = col
         if min_row > row:
             min_row = row
-        elif max_row < row:
+        if max_row < row:
             max_row = row
     return [(min_col, min_row), (max_col, max_row)]
